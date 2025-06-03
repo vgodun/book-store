@@ -1,0 +1,26 @@
+name: Deploy Frontend to S3
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION_S3 }}
+
+      - name: Remove old S3 content
+        run: |
+          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME_PROD }} --recursive
+
+      - name: Upload new frontend to S3
+        run: |
+          aws s3 sync ./frontend s3://${{ secrets.S3_BUCKET_NAME_PROD }} --delete
