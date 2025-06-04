@@ -65,7 +65,6 @@ jobs:
       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       EC2_HOST_PROD: ${{ secrets.EC2_HOST_PROD }}
-      KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
 
   deploy_frontend:
     needs: check_folder_changes
