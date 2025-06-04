@@ -166,7 +166,7 @@ jobs:
           rm /tmp/ssh_key
 
 
-  build_and_deploy_redis_main:
+  build_and_deploy_frontend_main:
     runs-on: ubuntu-latest
     needs: check_folder_changes
     if: needs.check_folder_changes.outputs.frontend_changed == 'true' && github.ref == 'refs/heads/main'
