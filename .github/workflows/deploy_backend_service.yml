@@ -23,6 +23,10 @@ on:
         required: true
       EC2_HOST_PROD:
         required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
 
 permissions:
   id-token: write
@@ -83,10 +87,10 @@ jobs:
 
       - name: Deploy to EC2
         env:
-            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            IMAGE_TAG: ${{ github.sha }}
-            CONTAINER_NAME: ${{ inputs.container_name }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          IMAGE_TAG: ${{ github.sha }}
+          CONTAINER_NAME: ${{ inputs.container_name }}
         run: |
           cho "${{ secrets.SSH_PRIVATE_KEY_PROD }}" > /tmp/ssh_key
           chmod 600 /tmp/ssh_key
