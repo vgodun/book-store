@@ -12,6 +12,17 @@ on:
       container_name:
         required: true
         type: string
+    secrets:
+      SSH_PRIVATE_KEY_PROD:
+        required: true
+      AWS_REGION:
+        required: true
+      AWS_ROLE_TO_ASSUME:
+        required: true
+      AWS_ACCOUNT_ID:
+        required: true
+      EC2_HOST_PROD:
+        required: true
 
 jobs:
   deploy:
