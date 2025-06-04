@@ -46,7 +46,7 @@ jobs:
     if: needs.check_folder_changes.outputs.backend_rds_changed == 'true' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy_backend_service.yml
     with:
-      image_name: "prod_rds"
+      image_name: "backend_rds"
       dockerfile_path: "./backend_rds"
       container_name: "backend_rds"
     secrets:
@@ -61,7 +61,7 @@ jobs:
     if: needs.check_folder_changes.outputs.backend_redis_changed == 'true' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy_backend_service.yml
     with:
-      image_name: "prod_redis"
+      image_name: "backend_redis"
       dockerfile_path: "./backend_redis"
       container_name: "backend_redis"
     secrets:
