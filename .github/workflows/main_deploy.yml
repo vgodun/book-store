@@ -232,24 +232,26 @@ jobs:
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" > /tmp/ssh_key
           chmod 600 /tmp/ssh_key
-          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << EOF
+          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << 'EOF'
+            AWS_REGION="${AWS_REGION}"
+            AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}"
+            IMAGE_TAG="${IMAGE_TAG}"
+            CONTAINER_NAME="${CONTAINER_NAME}"
+
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
             docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/backend_redis:$IMAGE_TAG
-            sed -i '/backend_redis:/,/image:/s|image: .*|image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/backend_redis:$IMAGE_TAG|g' docker-compose.yml
+            sed -i '/backend_redis:/,/image:/s|image: .*|image: '"$AWS_ACCOUNT_ID"'.dkr.ecr.'"$AWS_REGION"'.amazonaws.com/backend_redis:'"$IMAGE_TAG"'|g' docker-compose.yml
+
             if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-            echo "Контейнер $CONTAINER_NAME працює. Зупиняємо..."
-            
-            # Зупиняємо контейнер
-            docker-compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
-            
+              echo "Контейнер $CONTAINER_NAME працює. Зупиняємо..."
+              docker-compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
             else
-                echo "Контейнер $CONTAINER_NAME не запущений. Запускаємо..."
-                
-                # Запускаємо контейнер
-                docker-compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
+              echo "Контейнер $CONTAINER_NAME не запущений. Запускаємо..."
+              docker-compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
             fi
           EOF
           rm /tmp/ssh_key
+
 
 
   deploy_frontend_to_s3_main:
@@ -278,9 +280,9 @@ jobs:
       - name: Remove old files from S3
         if: steps.check_frontend.outputs.frontend_changed == 'true'
         run: |
-          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME_PROD }} --recursive
+          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME }} --recursive
 
       - name: Upload new frontend files to S3
         if: steps.check_frontend.outputs.frontend_changed == 'true'
         run: |
-          aws s3 sync ./frontend s3://${{ secrets.S3_BUCKET_NAME_PROD }} --delete
+          aws s3 sync ./frontend s3://${{ secrets.S3_BUCKET_NAME }} --delete
