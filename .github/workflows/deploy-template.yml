@@ -1,0 +1,57 @@
+# Example: Refactored workflow using composite actions (future improvement)
+# This demonstrates how to eliminate code duplication using reusable components
+
+name: Deploy Services Template
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      dockerfile_path:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_REGION:
+        required: true
+      AWS_ACCOUNT_ID:
+        required: true
+      EC2_HOST:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy ${{ inputs.service_name }} to ${{ inputs.environment }}
+        uses: ./.github/actions/deploy-service
+        with:
+          service_name: ${{ inputs.service_name }}
+          dockerfile_path: ${{ inputs.dockerfile_path }}
+          environment: ${{ inputs.environment }}
+          ssh_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: ${{ secrets.AWS_REGION }}
+          aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+          ec2_host: ${{ secrets.EC2_HOST }}
+
+# Usage in main workflow:
+# jobs:
+#   deploy_backend_rds:
+#     uses: ./.github/workflows/deploy-template.yml
+#     with:
+#       service_name: backend_rds
+#       dockerfile_path: ./backend_rds
+#       environment: production
+#     secrets: inherit 
