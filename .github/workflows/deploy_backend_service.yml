@@ -14,14 +14,19 @@ on:
         type: string
     secrets:
       SSH_PRIVATE_KEY_PROD:
+        key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
         required: true
       AWS_REGION:
+        key: ${{ secrets.AWS_REGION }}
         required: true
       AWS_ROLE_TO_ASSUME:
+        key: ${{ secrets.AWS_ROLE_TO_ASSUME }}
         required: true
       AWS_ACCOUNT_ID:
+        key: ${{ secrets.AWS_ACCOUNT_ID }}
         required: true
       EC2_HOST_PROD:
+        key: ${{ secrets.EC2_HOST_PROD }}
         required: true
 
 jobs:
