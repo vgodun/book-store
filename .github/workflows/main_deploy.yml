@@ -38,7 +38,7 @@ jobs:
 
   deploy_rds:
     needs: check_folder_changes
-    if: needs.check_folder_changes.outputs.backend_rds_changed == 'true' && github.ref == 'refs/heads/master'
+    if: needs.check_folder_changes.outputs.backend_rds_changed == 'true' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy_backend_service.yml
     with:
       image_name: "prod_rds"
@@ -47,7 +47,7 @@ jobs:
 
   deploy_redis:
     needs: check_folder_changes
-    if: needs.check_folder_changes.outputs.backend_redis_changed == 'true' && github.ref == 'refs/heads/master'
+    if: needs.check_folder_changes.outputs.backend_redis_changed == 'true' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy_backend_service.yml
     with:
       image_name: "prod_redis"
@@ -56,5 +56,5 @@ jobs:
 
   deploy_frontend:
     needs: check_folder_changes
-    if: needs.check_folder_changes.outputs.frontend_changed == 'true' && github.ref == 'refs/heads/master'
+    if: needs.check_folder_changes.outputs.frontend_changed == 'true' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy_frontend.yml
