@@ -31,14 +31,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Debug SSH Key Availability
+      - name: Check SSH Key Secret
         run: |
-          if [ -z "${{ secrets.SSH_PRIVATE_KEY_PROD }}" ]; then
-            echo "❌ SSH_PRIVATE_KEY_PROD secret is empty or not set"
-            exit 1
+          if [ -n "${{ secrets.SSH_PRIVATE_KEY_PROD }}" ]; then
+            echo "✅ SSH key secret is available"
           else
-            echo "✅ SSH_PRIVATE_KEY_PROD secret is available"
-            echo "Key length: $(echo '${{ secrets.SSH_PRIVATE_KEY_PROD }}' | wc -c)"
+            echo "❌ SSH_PRIVATE_KEY_PROD secret is missing or empty!"
+            echo "Please add the SSH private key to repository secrets"
+            exit 1
           fi
 
       - name: Setup SSH Key
