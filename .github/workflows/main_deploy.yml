@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, dev]
 
+
+permissions:
+  id-token: write   
+  contents: read    
+
 jobs:
   check_folder_changes:
     runs-on: ubuntu-latest
@@ -73,5 +78,5 @@ jobs:
     secrets:
       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       AWS_REGION_S3: ${{ secrets.AWS_REGION_S3 }}
-      S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+      S3_BUCKET_NAME_PROD: ${{ secrets.S3_BUCKET_NAME_PROD }}
 
