@@ -1,96 +1,9 @@
-# name: Deploy to AWS
-
-# on:
-#   push:
-#     branches: [main, dev]
-
-
-# permissions:
-#   id-token: write   
-#   contents: read    
-
-# jobs:
-#   check_folder_changes:
-#     runs-on: ubuntu-latest
-#     outputs:
-#       backend_rds_changed: ${{ steps.check_rds.outputs.backend_rds_changed }}
-#       backend_redis_changed: ${{ steps.check_redis.outputs.backend_redis_changed }}
-#       frontend_changed: ${{ steps.check_frontend.outputs.frontend_changed }}
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v2
-
-#       - id: check_rds
-#         uses: dorny/paths-filter@v2
-#         with:
-#           filters: |
-#             backend_rds_changed:
-#               - 'backend_rds/**'
-
-#       - id: check_redis
-#         uses: dorny/paths-filter@v2
-#         with:
-#           filters: |
-#             backend_redis_changed:
-#               - 'backend_redis/**'
-
-#       - id: check_frontend
-#         uses: dorny/paths-filter@v2
-#         with:
-#           filters: |
-#             frontend_changed:
-#               - 'frontend/**'
-
-#   deploy_rds:
-#     needs: check_folder_changes
-#     if: needs.check_folder_changes.outputs.backend_rds_changed == 'true' && github.ref == 'refs/heads/main'
-#     uses: ./.github/workflows/deploy_backend_service.yml
-#     with:
-#       image_name: "backend_rds"
-#       dockerfile_path: "./backend_rds"
-#       container_name: "backend_rds"
-#     secrets:
-#       SSH_PRIVATE_KEY_PROD: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
-#       AWS_REGION: ${{ secrets.AWS_REGION }}
-#       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-#       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-#       EC2_HOST_PROD: ${{ secrets.EC2_HOST_PROD }}
-#       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-#   deploy_redis:
-#     needs: check_folder_changes
-#     if: needs.check_folder_changes.outputs.backend_redis_changed == 'true' && github.ref == 'refs/heads/main'
-#     uses: ./.github/workflows/deploy_backend_service.yml
-#     with:
-#       image_name: "backend_redis"
-#       dockerfile_path: "./backend_redis"
-#       container_name: "backend_redis"
-#     secrets:
-#       SSH_PRIVATE_KEY_PROD: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
-#       AWS_REGION: ${{ secrets.AWS_REGION }}
-#       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-#       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-#       EC2_HOST_PROD: ${{ secrets.EC2_HOST_PROD }}
-#       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-#   deploy_frontend:
-#     needs: check_folder_changes
-#     if: needs.check_folder_changes.outputs.frontend_changed == 'true' && github.ref == 'refs/heads/main'
-#     uses: ./.github/workflows/deploy_frontend.yml
-#     secrets:
-#       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-#       AWS_REGION_S3: ${{ secrets.AWS_REGION_S3 }}
-#       S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
-
 name: Deploy to AWS ECR
 
 on:
   push:
     branches:
       - main
-      - dev
 
 jobs:
   check_folder_changes:
@@ -144,14 +57,14 @@ jobs:
           known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Log in to Amazon ECR
-        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+        run: aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 692771913161.dkr.ecr.eu-central-1.amazonaws.com
 
       - name: Build and push Docker image for backend_rds
         run: |
@@ -160,10 +73,6 @@ jobs:
           docker tag backend_rds:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_rds:$IMAGE_TAG
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_rds:$IMAGE_TAG
 
-      - name: 🔍 Debug SSH key length
-        run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" | wc -c
-          
       - name: Deploy backend_rds to EC2 (main)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -173,7 +82,7 @@ jobs:
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" > /tmp/ssh_key
           chmod 600 /tmp/ssh_key
-          ssh -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << EOF
+          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << EOF
           IMAGE_TAG=${{ github.sha }}
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
             docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_rds:$IMAGE_TAG
@@ -182,13 +91,13 @@ jobs:
             echo "Контейнер $CONTAINER_NAME працює. Зупиняємо..."
             
             # Зупиняємо контейнер
-            docker-compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
+            docker compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
             
             else
                 echo "Контейнер $CONTAINER_NAME не запущений. Запускаємо..."
                 
                 # Запускаємо контейнер
-                docker-compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
+                docker compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
             fi
           EOF
           rm /tmp/ssh_key
@@ -209,7 +118,7 @@ jobs:
           known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -221,8 +130,8 @@ jobs:
       - name: Build and push Docker image for backend_redis
         run: |
           IMAGE_TAG=${{ github.sha }}
-          docker build -t backend_redis:$IMAGE_TAG ./backend_redis
-          docker tag backend_redis:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_redis:$IMAGE_TAG
+          docker build -t ${{ secrets.AWS_ECR_RDS_PROD }}:$IMAGE_TAG ./backend_redis
+          docker tag ${{ secrets.AWS_ECR_RDS_PROD }}:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_redis:$IMAGE_TAG
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_redis:$IMAGE_TAG
 
       - name: Deploy backend_redis to EC2 (main)
@@ -236,26 +145,24 @@ jobs:
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" > /tmp/ssh_key
           chmod 600 /tmp/ssh_key
-          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << 'EOF'
-            AWS_REGION="${AWS_REGION}"
-            AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}"
-            IMAGE_TAG="${IMAGE_TAG}"
-            CONTAINER_NAME="${CONTAINER_NAME}"
-
+          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << EOF
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
             docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/backend_redis:$IMAGE_TAG
-            sed -i '/backend_redis:/,/image:/s|image: .*|image: '"$AWS_ACCOUNT_ID"'.dkr.ecr.'"$AWS_REGION"'.amazonaws.com/backend_redis:'"$IMAGE_TAG"'|g' docker-compose.yml
-
+            sed -i '/backend_redis:/,/image:/s|image: .*|image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/backend_redis:$IMAGE_TAG|g' docker-compose.yml
             if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-              echo "Контейнер $CONTAINER_NAME працює. Зупиняємо..."
-              docker-compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
+            echo "Контейнер $CONTAINER_NAME працює. Зупиняємо..."
+            
+            # Зупиняємо контейнер
+            docker compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
+            
             else
-              echo "Контейнер $CONTAINER_NAME не запущений. Запускаємо..."
-              docker-compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
+                echo "Контейнер $CONTAINER_NAME не запущений. Запускаємо..."
+                
+                # Запускаємо контейнер
+                docker compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
             fi
           EOF
           rm /tmp/ssh_key
-
 
 
   deploy_frontend_to_s3_main:
@@ -267,7 +174,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -284,9 +191,9 @@ jobs:
       - name: Remove old files from S3
         if: steps.check_frontend.outputs.frontend_changed == 'true'
         run: |
-          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME }} --recursive
+          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME_PROD }} --recursive
 
       - name: Upload new frontend files to S3
         if: steps.check_frontend.outputs.frontend_changed == 'true'
         run: |
-          aws s3 sync ./frontend s3://${{ secrets.S3_BUCKET_NAME }} --delete
+          
