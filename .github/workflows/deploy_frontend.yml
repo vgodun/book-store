@@ -2,6 +2,13 @@ name: Deploy Frontend to S3
 
 on:
   workflow_call:
+    secrets:
+      AWS_ROLE_TO_ASSUME:
+        required: true
+      AWS_REGION_S3:
+        required: true
+      S3_BUCKET_NAME:
+        required: true
 
 jobs:
   deploy:
