@@ -131,8 +131,8 @@ jobs:
       - name: Build and push Docker image for backend_redis
         run: |
           IMAGE_TAG=${{ github.sha }}
-          docker build -t ${{ secrets.AWS_ECR_RDS_PROD }}:$IMAGE_TAG ./backend_redis
-          docker tag ${{ secrets.AWS_ECR_RDS_PROD }}:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_redis:$IMAGE_TAG
+          docker build -t backend_redis:$IMAGE_TAG ./backend_redis
+          docker tag backend_redis:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_redis:$IMAGE_TAG
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_redis:$IMAGE_TAG
 
       - name: Deploy backend_redis to EC2 (main)
@@ -154,13 +154,13 @@ jobs:
             echo "Контейнер $CONTAINER_NAME працює. Зупиняємо..."
             
             # Зупиняємо контейнер
-            docker-compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
+            docker compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
             
             else
                 echo "Контейнер $CONTAINER_NAME не запущений. Запускаємо..."
                 
                 # Запускаємо контейнер
-                docker-compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
+                docker compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
             fi
           EOF
           rm /tmp/ssh_key
