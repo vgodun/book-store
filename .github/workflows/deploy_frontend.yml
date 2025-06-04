@@ -105,31 +105,19 @@ jobs:
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
             docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ inputs.image_name }}:$IMAGE_TAG
             
-            # Update .env file FIRST to ensure environment variables are available
-            echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}" > .env
-            echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
-            echo "IMAGE_TAG=$IMAGE_TAG" >> .env
+            # Get the latest image tag from ECR
+            echo "🔍 Getting latest image tag from ECR..."
+            LATEST_TAG=$(aws ecr describe-images --repository-name ${{ inputs.image_name }} --region ${{ secrets.AWS_REGION }} --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text)
+            echo "📌 Latest available tag in ECR: $LATEST_TAG"
+            echo "📌 Just pushed tag: $IMAGE_TAG"
             
-            echo "📁 .env file contents:"
-            cat .env
+            # Use the latest tag from ECR (which should be the one we just pushed)
+            export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
+            export AWS_REGION="${{ secrets.AWS_REGION }}"
+            export IMAGE_TAG="$LATEST_TAG"
             
-            # Use envsubst for more reliable variable substitution
-            if command -v envsubst >/dev/null 2>&1; then
-              echo "🔄 Using envsubst to replace variables..."
-              envsubst < docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
-            else
-              echo "⚠️ envsubst not available, using sed..."
-              # Fallback to sed with more specific pattern
-              sed -i "s|\${AWS_ACCOUNT_ID}|${{ secrets.AWS_ACCOUNT_ID }}|g" docker-compose.yml
-              sed -i "s|\${AWS_REGION}|${{ secrets.AWS_REGION }}|g" docker-compose.yml
-              sed -i "s|\${IMAGE_TAG}|$IMAGE_TAG|g" docker-compose.yml
-            fi
+            echo "🚀 Using IMAGE_TAG: $LATEST_TAG for deployment"
             
-            # Debug: Show docker-compose.yml after changes
-            echo "📋 Updated docker-compose.yml:"
-            cat docker-compose.yml
-            
-            # Test docker-compose config
             echo "🧪 Testing docker compose configuration:"
             docker compose config || echo "❌ Docker compose config validation failed"
             
