@@ -166,13 +166,20 @@ jobs:
           rm /tmp/ssh_key
 
 
-  deploy_frontend_to_s3_main:
+  build_and_deploy_redis_main:
     runs-on: ubuntu-latest
     needs: check_folder_changes
     if: needs.check_folder_changes.outputs.frontend_changed == 'true' && github.ref == 'refs/heads/main'
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
