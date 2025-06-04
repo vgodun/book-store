@@ -24,6 +24,10 @@ on:
       EC2_HOST_PROD:
         required: true
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
