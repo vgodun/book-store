@@ -36,6 +36,8 @@ jobs:
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
           known_hosts: 'placeholder'
+          name: id_rsa
+          if_key_exists: replace
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -56,16 +58,13 @@ jobs:
 
       - name: Deploy to EC2
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" > /tmp/ssh_key
-          chmod 600 /tmp/ssh_key
-          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << EOF
+          ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST_PROD }} << 'EOF'
             IMAGE_TAG=${{ github.sha }}
-            docker login -u AWS -p \$(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ inputs.image_name }}:\$IMAGE_TAG
-            sed -i '/${{ inputs.container_name }}:/,/image:/s|image: .*|image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ inputs.image_name }}:\$IMAGE_TAG|g' docker-compose.yml
-            if [ "\$(docker ps -q -f name=${{ inputs.container_name }})" ]; then
+            docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ inputs.image_name }}:$IMAGE_TAG
+            sed -i '/${{ inputs.container_name }}:/,/image:/s|image: .*|image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ inputs.image_name }}:$IMAGE_TAG|g' docker-compose.yml
+            if [ "$(docker ps -q -f name=${{ inputs.container_name }})" ]; then
               docker-compose stop ${{ inputs.container_name }}
             fi
             docker-compose up -d ${{ inputs.container_name }}
           EOF
-          rm /tmp/ssh_key
