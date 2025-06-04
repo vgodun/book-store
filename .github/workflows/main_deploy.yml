@@ -44,6 +44,12 @@ jobs:
       image_name: "prod_rds"
       dockerfile_path: "./backend_rds"
       container_name: "backend_rds"
+    secrets:
+      SSH_PRIVATE_KEY_PROD: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      EC2_HOST_PROD: ${{ secrets.EC2_HOST_PROD }}
 
   deploy_redis:
     needs: check_folder_changes
@@ -53,8 +59,19 @@ jobs:
       image_name: "prod_redis"
       dockerfile_path: "./backend_redis"
       container_name: "backend_redis"
+    secrets:
+      SSH_PRIVATE_KEY_PROD: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      EC2_HOST_PROD: ${{ secrets.EC2_HOST_PROD }}
 
   deploy_frontend:
     needs: check_folder_changes
     if: needs.check_folder_changes.outputs.frontend_changed == 'true' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy_frontend.yml
+    secrets:
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      AWS_REGION_S3: ${{ secrets.AWS_REGION_S3 }}
+      S3_BUCKET_NAME_PROD: ${{ secrets.S3_BUCKET_NAME }}
+
