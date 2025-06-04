@@ -18,8 +18,8 @@ jobs:
 
       - name: Remove old S3 content
         run: |
-          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME_PROD }} --recursive
+          aws s3 rm s3://${{ secrets.S3_BUCKET_NAME }} --recursive
 
       - name: Upload new frontend to S3
         run: |
-          aws s3 sync ./frontend s3://${{ secrets.S3_BUCKET_NAME_PROD }} --delete
+          aws s3 sync ./frontend s3://${{ secrets.S3_BUCKET_NAME }} --delete
