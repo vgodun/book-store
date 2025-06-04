@@ -130,21 +130,21 @@ jobs:
             cat docker-compose.yml
             
             # Test docker-compose config
-            echo "🧪 Testing docker-compose configuration:"
-            docker-compose config || echo "❌ Docker-compose config validation failed"
+            echo "🧪 Testing docker compose configuration:"
+            docker compose config || echo "❌ Docker compose config validation failed"
             
             echo "🛑 Stopping existing services (if any)..."
-            docker-compose down --remove-orphans || echo "No existing services to stop"
+            docker compose down --remove-orphans || echo "No existing services to stop"
             
-            echo "🚀 Starting all services with docker-compose..."
-            docker-compose up -d
+            echo "🚀 Starting all services with docker compose..."
+            docker compose up -d
             
             # Wait a bit for services to start
             echo "⏱️ Waiting for services to start..."
             sleep 10
             
             echo "📊 Checking service status:"
-            docker-compose ps
+            docker compose ps
             
             echo "🔍 Detailed status check:"
             docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
@@ -153,11 +153,11 @@ jobs:
             if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
               echo "✅ Container $CONTAINER_NAME is running successfully"
               echo "📋 Recent logs for $CONTAINER_NAME:"
-              docker-compose logs $CONTAINER_NAME --tail=10
+              docker compose logs $CONTAINER_NAME --tail=10
             else
               echo "❌ Container $CONTAINER_NAME failed to start"
               echo "📋 Full logs for $CONTAINER_NAME:"
-              docker-compose logs $CONTAINER_NAME --tail=50
+              docker compose logs $CONTAINER_NAME --tail=50
               echo "🔍 Docker events for troubleshooting:"
               docker events --since=2m --until=now
             fi
