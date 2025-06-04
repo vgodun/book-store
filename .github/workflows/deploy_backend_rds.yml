@@ -110,26 +110,13 @@ jobs:
             echo "📌 Latest tag from ECR: $LATEST_TAG"
             echo "📌 Just pushed tag: $IMAGE_TAG"
             
-            echo "🔄 Updating .env file with latest IMAGE_TAG for backend_rds: $LATEST_TAG"
+            echo "🔄 Updating docker-compose.yml IMAGE_TAG for backend_rds service only"
             
-            # Create or update .env file with current values, preserving other service tags
-            echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}" > .env.tmp
-            echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env.tmp
-            echo "IMAGE_TAG_RDS=$LATEST_TAG" >> .env.tmp
+            # Replace IMAGE_TAG only in the backend_rds service section
+            sed -i "/backend_rds:/,/backend_redis:/s|\${IMAGE_TAG}|$LATEST_TAG|g" docker-compose.yml
             
-            # Preserve existing tags for other services if .env exists
-            if [ -f ".env" ]; then
-              grep "IMAGE_TAG_REDIS=" .env >> .env.tmp 2>/dev/null || echo "IMAGE_TAG_REDIS=latest" >> .env.tmp
-              grep "IMAGE_TAG_FRONTEND=" .env >> .env.tmp 2>/dev/null || echo "IMAGE_TAG_FRONTEND=latest" >> .env.tmp
-            else
-              echo "IMAGE_TAG_REDIS=latest" >> .env.tmp
-              echo "IMAGE_TAG_FRONTEND=latest" >> .env.tmp
-            fi
-            
-            mv .env.tmp .env
-            
-            echo "📁 Updated .env file:"
-            cat .env
+            echo "📋 Updated docker-compose.yml:"
+            cat docker-compose.yml
             
             echo "🧪 Testing docker compose configuration:"
             docker compose config || echo "❌ Docker compose config validation failed"
