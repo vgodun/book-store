@@ -1,4 +1,4 @@
-name: Deploy Backend Service
+name: Deploy All Services
 
 on:
   workflow_call:
@@ -99,7 +99,7 @@ jobs:
             echo "🖼️ Image: ${{ inputs.image_name }}"
             
             # Debug: Show current docker-compose.yml before changes
-            echo "📋 Current docker-compose.yml:"
+            echo "📋 Current docker-compose.yml before update:"
             cat docker-compose.yml
             
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
@@ -110,12 +110,25 @@ jobs:
             echo "📌 Latest tag from ECR: $LATEST_TAG"
             echo "📌 Just pushed tag: $IMAGE_TAG"
             
-            echo "🔄 Updating docker-compose.yml IMAGE_TAG for backend_rds service only"
+            # Verify IMAGE_TAG presence before replacement
+            echo "🔍 Checking IMAGE_TAG placeholders before replacement:"
+            grep -n "\${IMAGE_TAG}" docker-compose.yml || echo "⚠️ No IMAGE_TAG placeholders found"
             
-            # Replace IMAGE_TAG only in the backend_rds service section
-            sed -i "/backend_rds:/,/backend_redis:/s|\${IMAGE_TAG}|$LATEST_TAG|g" docker-compose.yml
+            echo "🔄 Updating docker-compose.yml IMAGE_TAG for all services"
             
-            echo "📋 Updated docker-compose.yml:"
+            # Replace IMAGE_TAG globally in the entire docker-compose.yml file
+            sed -i "s|\${IMAGE_TAG}|$LATEST_TAG|g" docker-compose.yml
+            
+            # Verify replacement was successful
+            echo "✅ Verifying IMAGE_TAG replacement:"
+            if grep -q "\${IMAGE_TAG}" docker-compose.yml; then
+              echo "❌ Warning: Some IMAGE_TAG placeholders were not replaced!"
+              grep -n "\${IMAGE_TAG}" docker-compose.yml
+            else
+              echo "✅ All IMAGE_TAG placeholders successfully replaced"
+            fi
+            
+            echo "📋 Updated docker-compose.yml after replacement:"
             cat docker-compose.yml
             
             echo "🧪 Testing docker compose configuration:"
