@@ -83,73 +83,24 @@ jobs:
 
       - name: Deploy to EC2
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" > /tmp/ssh_key
+           echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" > /tmp/ssh_key
           chmod 600 /tmp/ssh_key
-          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << 'EOF'
-            IMAGE_TAG="${{ github.sha }}"
-            CONTAINER_NAME="${{ inputs.container_name }}"
-            
-            # Set environment variables for docker-compose
-            export AWS_ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
-            export AWS_REGION="${{ secrets.AWS_REGION }}"
-            export IMAGE_TAG="$IMAGE_TAG"
-            
-            echo "🚀 Deploying with IMAGE_TAG: $IMAGE_TAG"
-            echo "📦 Container: $CONTAINER_NAME"
-            echo "🖼️ Image: ${{ inputs.image_name }}"
-            
-            # Debug: Show current docker-compose.yml before changes
-            echo "📋 Current docker-compose.yml:"
-            cat docker-compose.yml
-            
+          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << EOF
+          IMAGE_TAG=${{ github.sha }}
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ inputs.image_name }}:$IMAGE_TAG
+            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/frontend:$IMAGE_TAG
+            sed -i '/frontend:/,/image:/s|image: .*|image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/frontend:$IMAGE_TAG|g' docker-compose.yml
+             if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
+            echo "Контейнер $CONTAINER_NAME працює. Зупиняємо..."
             
-            echo "🔄 Getting latest tag from ECR for ${{ inputs.image_name }}..."
-            LATEST_TAG=$(aws ecr describe-images --repository-name ${{ inputs.image_name }} --region ${{ secrets.AWS_REGION }} --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text)
-            echo "📌 Latest tag from ECR: $LATEST_TAG"
-            echo "📌 Just pushed tag: $IMAGE_TAG"
+            # Зупиняємо контейнер
+            docker compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
             
-            echo "🔄 Updating docker-compose.yml IMAGE_TAG for frontend service only"
-            
-            # Replace IMAGE_TAG only in the frontend service section (from frontend to end of file)
-            sed -i "/frontend:/,\$s|\${IMAGE_TAG}|$LATEST_TAG|g" docker-compose.yml
-            
-            echo "📋 Updated docker-compose.yml:"
-            cat docker-compose.yml
-            
-            echo "🧪 Testing docker compose configuration:"
-            docker compose config || echo "❌ Docker compose config validation failed"
-            
-            echo "🛑 Stopping existing services (if any)..."
-            docker compose down --remove-orphans || echo "No existing services to stop"
-            
-            echo "🚀 Starting all services with docker compose..."
-            docker compose up -d
-            
-            # Wait a bit for services to start
-            echo "⏱️ Waiting for services to start..."
-            sleep 10
-            
-            echo "📊 Checking service status:"
-            docker compose ps
-            
-            echo "🔍 Detailed status check:"
-            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
-            
-            echo "🔍 Checking if $CONTAINER_NAME is running:"
-            if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-              echo "✅ Container $CONTAINER_NAME is running successfully"
-              echo "📋 Recent logs for $CONTAINER_NAME:"
-              docker compose logs $CONTAINER_NAME --tail=10
             else
-              echo "❌ Container $CONTAINER_NAME failed to start"
-              echo "📋 Full logs for $CONTAINER_NAME:"
-              docker compose logs $CONTAINER_NAME --tail=50
-              echo "🔍 Docker events for troubleshooting:"
-              docker events --since=2m --until=now
+                echo "Контейнер $CONTAINER_NAME не запущений. Запускаємо..."
+                
+                # Запускаємо контейнер
+                docker compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
             fi
-            
-            echo "✅ Deployment completed for $CONTAINER_NAME with tag $IMAGE_TAG"
           EOF
           rm /tmp/ssh_key
