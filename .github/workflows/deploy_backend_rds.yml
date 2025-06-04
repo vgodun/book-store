@@ -77,8 +77,8 @@ jobs:
       - name: Build and Push Image
         run: |
           IMAGE_TAG=${{ github.sha }}
-          docker build -t ${{ inputs.image_name }}:$IMAGE_TAG ${{ inputs.dockerfile_path }}
-          docker tag ${{ inputs.image_name }}:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_rds:$IMAGE_TAG
+          docker build -t backend_rds:$IMAGE_TAG ./backend_rds
+          docker tag backend_rds:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_rds:$IMAGE_TAG
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/backend_rds:$IMAGE_TAG
 
       - name: Deploy to EC2
