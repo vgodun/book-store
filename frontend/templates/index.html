@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>API Connection Tester</title>
     <style>
-      
       :root {
         --color-primary: #4990e2;
         --color-primary-dark: #357abd;
@@ -44,34 +43,6 @@
         padding: var(--spacing-lg);
       }
 
-      .host-input-container {
-        margin-bottom: var(--spacing-lg);
-      }
-
-      .host-input {
-        width: 100%;
-        padding: var(--spacing-md);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        font-family: var(--font-mono);
-        font-size: 14px;
-        background-color: #fff;
-        margin-bottom: var(--spacing-sm);
-      }
-
-      .host-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 2px rgba(73, 144, 226, 0.2);
-      }
-
-      .host-label {
-        display: block;
-        font-size: 14px;
-        color: var(--color-text-secondary);
-        margin-bottom: var(--spacing-sm);
-      }
-
       h1 {
         font-size: 2em;
         font-weight: bold;
@@ -105,62 +76,13 @@
         border-radius: var(--radius-sm);
         font-size: 14px;
         font-weight: 700;
-        min-width: 50px;
+        min-width: 80px;
         text-align: center;
       }
 
       .endpoint-url {
         font-family: var(--font-mono);
         font-size: 14px;
-        flex-grow: 0;
-      }
-
-      .host-input-wrapper {
-        display: flex;
-        align-items: center;
-        flex-grow: 1;
-      }
-
-      .url-input-group {
-        display: flex;
-        align-items: stretch;
-        flex-grow: 1;
-        background: #fff;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        overflow: hidden;
-        height: 32px;
-      }
-
-      .url-input-group .host-input {
-        border: none;
-        border-radius: 0;
-        margin: 0;
-        padding: 0 var(--spacing-sm);
-        min-width: 0;
-        font-size: 13px;
-      }
-
-      .url-static-part {
-        display: flex;
-        align-items: center;
-        padding: 0 var(--spacing-sm);
-        background: var(--color-bg-light);
-        color: var(--color-text-secondary);
-        font-family: var(--font-mono);
-        font-size: 13px;
-        border-right: 1px solid var(--color-border);
-        user-select: none;
-      }
-
-      .host-input:focus {
-        outline: none;
-        box-shadow: none;
-      }
-
-      .url-input-group:focus-within {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 2px rgba(73, 144, 226, 0.2);
       }
 
       /* Button styles */
@@ -168,13 +90,12 @@
         background-color: var(--color-primary);
         color: white;
         border: none;
-        padding: 0 var(--spacing-lg);
+        padding: var(--spacing-sm) var(--spacing-lg);
         border-radius: var(--radius-md);
         cursor: pointer;
-        font-size: 13px;
-        font-weight: 600;
-        height: 32px;
-        transition: all .2s ease;
+        font-size: 14px;
+        font-weight: 700;
+        transition: all .3s ease;
       }
 
       button:hover {
@@ -279,18 +200,8 @@
     <script>
       // Configuration
       const ENDPOINTS = [
-        { 
-          id: 'rds', 
-          name: 'RDS', 
-          url: '/test_connection/',
-          hostLabel: 'RDS Host'
-        },
-        { 
-          id: 'redis', 
-          name: 'Redis', 
-          url: '/test_connection/',
-          hostLabel: 'Redis Host'
-        }
+        { id: 'rds', name: 'RDS', url: '/test_rds/' },
+        { id: 'redis', name: 'Redis', url: '/test_redis/' }
       ];
 
       const STATUS = {
@@ -301,19 +212,13 @@
       // DOM manipulation helpers
       const getElement = id => document.getElementById(id);
       const setHTML = (element, html) => element.innerHTML = html;
-      const getHost = (id) => getElement(`${id}-host-input`).value;
 
       // Template generators
-      const createEndpointHTML = ({ id, url, hostLabel }) => `
+      const createEndpointHTML = ({ id, url }) => `
         <div class="test-section">
           <div class="endpoint-header">
             <span class="method-badge">GET</span>
-            <div class="host-input-wrapper">
-              <div class="url-input-group">
-                <input type="text" id="${id}-host-input" class="host-input" placeholder="http://localhost:8000" value="http://localhost:8000" />
-                <div class="url-static-part">/test_connection/</div>
-              </div>
-            </div>
+            <span class="endpoint-url">${url}</span>
             <button id="${id}-btn">Test Connection</button>
           </div>
           <div class="response-wrapper">
@@ -369,32 +274,25 @@
           })
         );
       };
+
       // API interaction
-      const testConnection = async (endpoint) => {
-        const host = getHost(endpoint.id);
-        const url = `${host}/test_connection/?host=${encodeURIComponent(host)}`;
-        setHTML(getElement(`${endpoint.id}-result`), createLoaderHTML(endpoint.name));
+      async function testConnection(endpoint) {
+        const resultId = `${endpoint.id}-result`;
+        showLoader(resultId, endpoint.name);
+        
         try {
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          });
+          const response = await fetch(endpoint.url);
           const data = await response.json();
           
           if (!response.ok) {
             throw new Error(JSON.stringify(data));
           }
           
-          showResponse(
-            `${endpoint.id}-result`,
-            {
-              success: true,
-              title: `${endpoint.name} Connection Successful`,
-              data
-            }
-          );
+          showResponse(resultId, {
+            success: true,
+            title: `${endpoint.name} Connection Successful`,
+            data
+          });
         } catch (error) {
           let errorData;
           try {
@@ -403,16 +301,13 @@
             errorData = { message: error.message };
           }
           
-          showResponse(
-            `${endpoint.id}-result`,
-            {
-              success: false,
-              title: `${endpoint.name} Connection Failed`,
-              data: errorData
-            }
-          );
+          showResponse(resultId, {
+            success: false,
+            title: `${endpoint.name} Connection Failed`,
+            data: errorData
+          });
         }
-      };
+      }
 
       // Initialization
       function init() {
