@@ -98,16 +98,40 @@ jobs:
             echo "📦 Container: $CONTAINER_NAME"
             echo "🖼️ Image: ${{ inputs.image_name }}"
             
+            # Debug: Show current docker-compose.yml before changes
+            echo "📋 Current docker-compose.yml:"
+            cat docker-compose.yml
+            
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
             docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ inputs.image_name }}:$IMAGE_TAG
             
-            # Update docker-compose.yml with new image tag
-            sed -i '/${{ inputs.container_name }}:/,/image:/s|image: .*|image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ inputs.image_name }}:$IMAGE_TAG|g' docker-compose.yml
-            
-            # Also update .env file to ensure environment variables are persistent
+            # Update .env file FIRST to ensure environment variables are available
             echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}" > .env
             echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
             echo "IMAGE_TAG=$IMAGE_TAG" >> .env
+            
+            echo "📁 .env file contents:"
+            cat .env
+            
+            # Use envsubst for more reliable variable substitution
+            if command -v envsubst >/dev/null 2>&1; then
+              echo "🔄 Using envsubst to replace variables..."
+              envsubst < docker-compose.yml > docker-compose.tmp && mv docker-compose.tmp docker-compose.yml
+            else
+              echo "⚠️ envsubst not available, using sed..."
+              # Fallback to sed with more specific pattern
+              sed -i "s|\${AWS_ACCOUNT_ID}|${{ secrets.AWS_ACCOUNT_ID }}|g" docker-compose.yml
+              sed -i "s|\${AWS_REGION}|${{ secrets.AWS_REGION }}|g" docker-compose.yml
+              sed -i "s|\${IMAGE_TAG}|$IMAGE_TAG|g" docker-compose.yml
+            fi
+            
+            # Debug: Show docker-compose.yml after changes
+            echo "📋 Updated docker-compose.yml:"
+            cat docker-compose.yml
+            
+            # Test docker-compose config
+            echo "🧪 Testing docker-compose configuration:"
+            docker-compose config || echo "❌ Docker-compose config validation failed"
             
             if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
               echo "Контейнер $CONTAINER_NAME працює. Перезапускаємо..."
