@@ -1,0 +1,87 @@
+name: Deploy Frontend to AWS ECR
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  check_frontend_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend_changed: ${{ steps.check_frontend.outputs.frontend_changed }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Check if frontend files have changed
+        id: check_frontend
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            frontend_changed:
+              - 'frontend/**'
+
+  build_and_deploy_frontend_main:
+    runs-on: ubuntu-latest
+    needs: check_frontend_changes
+    if: needs.check_frontend_changes.outputs.frontend_changed == 'true' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Build and push Docker image for frontend
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t frontend:$IMAGE_TAG ./frontend
+          docker tag frontend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/frontend:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/frontend:$IMAGE_TAG
+
+      - name: Deploy frontend to EC2 (main)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          IMAGE_TAG: ${{ github.sha }}
+          CONTAINER_NAME: frontend
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" > /tmp/ssh_key
+          chmod 600 /tmp/ssh_key
+          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ec2-user@${{ secrets.EC2_HOST_PROD }} << EOF
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+            docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:$IMAGE_TAG
+            sed -i '/frontend:/,/image:/s|image: .*|image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:$IMAGE_TAG|g' docker-compose.yml
+            if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
+            echo "Контейнер $CONTAINER_NAME працює. Зупиняємо..."
+            
+            # Зупиняємо контейнер
+            docker compose stop $CONTAINER_NAME || echo "Не вдалося зупинити контейнер $CONTAINER_NAME"
+            
+            else
+                echo "Контейнер $CONTAINER_NAME не запущений. Запускаємо..."
+                
+                # Запускаємо контейнер
+                docker compose up -d $CONTAINER_NAME || echo "Не вдалося запустити контейнер $CONTAINER_NAME"
+            fi
+          EOF
+          rm /tmp/ssh_key 
